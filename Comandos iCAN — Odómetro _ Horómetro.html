@@ -1,0 +1,603 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Comandos iCAN — Odómetro / Horómetro</title>
+<style>
+  :root{
+    --bg: #0f1420;
+    --panel: #171d2b;
+    --panel-2: #1e2636;
+    --border: #2a3448;
+    --text: #e8ecf4;
+    --text-dim: #93a0ba;
+    --accent: #4f8cff;
+    --accent-2: #3dd68c;
+    --danger: #ff6b6b;
+    --mono: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+  }
+  *{ box-sizing: border-box; }
+  body{
+    margin:0;
+    min-height:100vh;
+    background: radial-gradient(1200px 600px at 50% -10%, #1a2338 0%, var(--bg) 60%);
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    padding: 32px 16px 64px;
+  }
+  .wrap{
+    max-width: 680px;
+    margin: 0 auto;
+  }
+  h1{
+    font-size: 22px;
+    font-weight: 650;
+    margin: 0 0 4px;
+    letter-spacing: -0.01em;
+  }
+  .subtitle{
+    color: var(--text-dim);
+    font-size: 14px;
+    margin: 0 0 22px;
+    line-height: 1.5;
+  }
+  .tabs{
+    display:flex;
+    gap: 8px;
+    margin-bottom: 20px;
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 6px;
+  }
+  .tab-btn{
+    flex: 1 1 0;
+    appearance: none;
+    border: none;
+    border-radius: 8px;
+    padding: 10px 14px;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    background: transparent;
+    color: var(--text-dim);
+    transition: background .15s ease, color .15s ease;
+  }
+  .tab-btn.active{
+    background: linear-gradient(135deg, var(--accent), #3b6fe0);
+    color: white;
+  }
+  .panel{ display:none; }
+  .panel.active{ display:block; }
+  .card{
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 22px;
+    margin-bottom: 18px;
+  }
+  label{
+    display:block;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text-dim);
+    margin-bottom: 8px;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+  }
+  input[type=text], textarea, select{
+    width: 100%;
+    background: var(--panel-2);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    color: var(--text);
+    font-family: var(--mono);
+    font-size: 14px;
+    padding: 12px 14px;
+    outline: none;
+    transition: border-color .15s ease;
+  }
+  select{ cursor: pointer; }
+  textarea{ resize: vertical; min-height: 92px; line-height: 1.5; }
+  input[type=text]:focus, textarea:focus, select:focus{
+    border-color: var(--accent);
+  }
+  .tabs.small{
+    margin-bottom: 0;
+  }
+  .field{ margin-bottom: 16px; }
+  .row{
+    display:flex;
+    gap: 10px;
+    margin-top: 18px;
+  }
+  button{
+    appearance: none;
+    border: none;
+    border-radius: 10px;
+    padding: 12px 20px;
+    font-size: 14px;
+    font-weight: 650;
+    cursor: pointer;
+    transition: transform .08s ease, opacity .15s ease;
+  }
+  button:active{ transform: scale(0.98); }
+  .btn-primary{
+    background: linear-gradient(135deg, var(--accent), #3b6fe0);
+    color: white;
+    flex: 1 1 auto;
+  }
+  .btn-primary:hover{ opacity: 0.92; }
+  .btn-ghost{
+    background: var(--panel-2);
+    color: var(--text);
+    border: 1px solid var(--border);
+    flex: 0 0 auto;
+  }
+  .btn-ghost:hover{ border-color: var(--accent); }
+  .result-item{
+    background: var(--panel-2);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 16px;
+  }
+  .result-item.error{
+    border-color: rgba(255,107,107,0.4);
+    background: rgba(255,107,107,0.06);
+  }
+  .meta{
+    font-size: 12.5px;
+    color: var(--text-dim);
+    margin-bottom: 10px;
+    line-height: 1.6;
+  }
+  .meta .km-old{ color: var(--text-dim); }
+  .meta .km-new{ color: var(--accent-2); font-weight: 600; }
+  .cmd-line{
+    font-family: var(--mono);
+    font-size: 15px;
+    word-break: break-all;
+    display:flex;
+    align-items:center;
+    justify-content: space-between;
+    gap: 12px;
+    flex-wrap: wrap;
+    margin-bottom: 6px;
+  }
+  .cmd-line:last-child{ margin-bottom: 0; }
+  .cmd-line.unchanged{ opacity: 0.6; }
+  .cmd-text{
+    flex: 1 1 auto;
+  }
+  .cmd-text .highlight{
+    color: var(--accent-2);
+    font-weight: 700;
+  }
+  .copy-btn, .copy-all-btn{
+    flex: 0 0 auto;
+    background: var(--panel);
+    border: 1px solid var(--border);
+    color: var(--text-dim);
+    padding: 7px 12px;
+    font-size: 12.5px;
+    border-radius: 7px;
+  }
+  .copy-btn:hover, .copy-all-btn:hover{ color: var(--text); border-color: var(--accent); }
+  .copy-btn.copied, .copy-all-btn.copied{ color: var(--accent-2); border-color: var(--accent-2); }
+  .copy-all-row{
+    margin-top: 14px;
+    display:flex;
+    justify-content:flex-end;
+  }
+  .error-msg{
+    color: var(--danger);
+    font-size: 13px;
+    font-family: var(--mono);
+  }
+  .hint{
+    font-size: 12.5px;
+    color: var(--text-dim);
+    margin-top: 10px;
+    line-height: 1.5;
+  }
+  .hint code{
+    background: var(--panel-2);
+    padding: 1px 6px;
+    border-radius: 5px;
+    font-family: var(--mono);
+    color: var(--text);
+  }
+  .empty-state{
+    color: var(--text-dim);
+    font-size: 13.5px;
+    text-align:center;
+    padding: 20px 10px;
+  }
+  footer{
+    text-align:center;
+    color: var(--text-dim);
+    font-size: 12px;
+    margin-top: 30px;
+  }
+</style>
+</head>
+<body>
+  <div class="wrap">
+    <h1>Comandos iCAN — Odómetro / Horómetro</h1>
+    <p class="subtitle">
+      Generá el comando actualizado sin tener que calcular nada a mano.
+    </p>
+
+    <div class="tabs" id="main-tabs">
+      <button class="tab-btn active" data-tab="km">Odómetro</button>
+      <button class="tab-btn" data-tab="hor">Horómetro</button>
+    </div>
+
+    <!-- ===================== KILOMETRAJE ===================== -->
+    <div class="panel active" id="panel-km">
+      <div class="card">
+        <div class="field">
+          <label>Tipo de equipo</label>
+          <div class="tabs" id="km-device-tabs" style="margin-bottom:0;">
+            <button type="button" class="tab-btn subtab-btn active" data-device="ican">iCAN</button>
+            <button type="button" class="tab-btn subtab-btn" data-device="gv300">GV300</button>
+          </div>
+        </div>
+
+        <div class="field" id="km-prefix-field">
+          <label for="km-prefix">Prefijo</label>
+          <select id="km-prefix">
+            <option value="STMTR1">STMTR1</option>
+            <option value="STMTR0">STMTR0</option>
+          </select>
+        </div>
+
+        <div class="field">
+          <label for="km-newval">Nuevo kilometraje (ej: 464498.5 o 464498,5)</label>
+          <input type="text" id="km-newval" placeholder="464498.5" inputmode="decimal">
+        </div>
+
+        <div class="row">
+          <button class="btn-primary" id="km-processBtn">Generar comando</button>
+          <button class="btn-ghost" id="km-clearBtn">Limpiar</button>
+        </div>
+
+        <div class="hint" id="km-hint-ican">
+          El comando con el valor va siempre con el formato <code>&gt;STMTR1;STEEP40151</code> +
+          kilometraje codificado (km × 1000, en 10 dígitos con ceros a la izquierda) + <code>&lt;</code>,
+          precedido por la secuencia fija <code>STCON0120</code> / <code>STCON0131</code> y seguido de
+          <code>STRSET</code> para reiniciar. El prefijo <code>STMTR0</code>/<code>STMTR1</code> es
+          intercambiable según el equipo.
+          Ej: <code>464498.5</code> km → <code>0464498500</code> → <code>&gt;STMTR1;STEEP401510464498500&lt;</code>.
+        </div>
+        <div class="hint" id="km-hint-gv300" style="display:none;">
+          Para GV300 el comando va envuelto en <code>AT+GTDAT=gv300w,1,,;...,,,,,0000$</code> y se
+          antepone la misma secuencia <code>STEEP40151</code> + kilometraje codificado, seguida de 4
+          comandos fijos adicionales propios del GV300W.
+        </div>
+      </div>
+
+      <div class="card">
+        <label style="margin-bottom:14px;">Resultado</label>
+        <div id="km-results">
+          <div class="empty-state">La secuencia de comandos va a aparecer acá.</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===================== HOROMETRO ===================== -->
+    <div class="panel" id="panel-hor">
+      <div class="card">
+        <div class="field">
+          <label for="hor-prefix">Prefijo</label>
+          <select id="hor-prefix">
+            <option value="STMTR0">STMTR0</option>
+            <option value="STMTR1">STMTR1</option>
+          </select>
+        </div>
+        <div class="field">
+          <label for="hor-newval">Nuevas horas (ej: 7927 o 7.927)</label>
+          <input type="text" id="hor-newval" placeholder="7927" inputmode="decimal">
+        </div>
+
+        <div class="row">
+          <button class="btn-primary" id="hor-processBtn">Generar comandos</button>
+          <button class="btn-ghost" id="hor-clearBtn">Limpiar</button>
+        </div>
+
+        <div class="hint">
+          Conversión: horas × 3.600 = segundos. La secuencia siempre es <code>STCONF141</code> (habilita
+          el horómetro virtual), <code>STEEP40155</code> + segundos codificados en 10 dígitos con ceros a
+          la izquierda, y <code>STRSET</code> (reinicia la iCAN Lite), con el prefijo
+          <code>STMTR0</code>/<code>STMTR1</code> que elijas arriba.
+          Ej: <code>7927</code> h → 28.537.200 s → <code>0028537200</code>.
+          El punto se interpreta como separador de miles (no decimal) salvo que uses coma para la parte decimal.
+        </div>
+      </div>
+
+      <div class="card">
+        <label style="margin-bottom:14px;">Resultado</label>
+        <div id="hor-results">
+          <div class="empty-state">La secuencia reemplazada va a aparecer acá.</div>
+        </div>
+      </div>
+    </div>
+
+    <footer>Procesamiento 100% local en tu navegador — nada se envía a ningún servidor.</footer>
+  </div>
+
+<script>
+(function(){
+  const FIELD_LEN = 10; // digits representing value * 1000, zero-padded
+
+  // ---------- shared helpers ----------
+
+  function parseDecimal(raw){
+    if(!raw) return null;
+    let s = raw.trim().replace(/\s/g,'');
+    if(s.indexOf(',') !== -1 && s.indexOf('.') !== -1){
+      // both present: assume "." is thousands sep, "," is decimal
+      s = s.replace(/\./g,'').replace(',', '.');
+    } else if(s.indexOf(',') !== -1){
+      s = s.replace(',', '.');
+    }
+    const n = Number(s);
+    if(isNaN(n) || n < 0) return null;
+    return n;
+  }
+
+  // For horas: "." is treated as a thousands separator (e.g. "7.927" -> 7927),
+  // "," is the decimal separator if present (e.g. "7927,5" -> 7927.5).
+  function parseHoras(raw){
+    if(!raw) return null;
+    let s = raw.trim().replace(/\s/g,'');
+    if(s.indexOf(',') !== -1){
+      s = s.replace(/\./g,'').replace(',', '.');
+    } else {
+      s = s.replace(/\./g,'');
+    }
+    const n = Number(s);
+    if(isNaN(n) || n < 0) return null;
+    return n;
+  }
+
+  // value (km, or seconds) -> 10-digit zero-padded field representing value*1000
+  function valueToField(value){
+    const thousandths = Math.round(value * 1000);
+    if(thousandths < 0) return null;
+    const str = String(thousandths);
+    if(str.length > FIELD_LEN) return null; // overflow
+    return str.padStart(FIELD_LEN, '0');
+  }
+
+  function fieldToValue(fieldStr){
+    return parseInt(fieldStr, 10) / 1000;
+  }
+
+  function escapeHtml(s){
+    return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  }
+
+  function fallbackCopy(text, cb){
+    try{
+      const ta = document.createElement('textarea');
+      ta.value = text;
+      ta.style.position = 'fixed';
+      ta.style.opacity = '0';
+      document.body.appendChild(ta);
+      ta.focus();
+      ta.select();
+      document.execCommand('copy');
+      document.body.removeChild(ta);
+      cb();
+    }catch(e){ /* no-op */ }
+  }
+
+  function copyText(text, btn){
+    const done = () => {
+      const original = btn.dataset.label || btn.textContent;
+      btn.dataset.label = original;
+      btn.textContent = '✓ Copiado';
+      btn.classList.add('copied');
+      setTimeout(() => {
+        btn.textContent = original;
+        btn.classList.remove('copied');
+      }, 1500);
+    };
+    if(navigator.clipboard && navigator.clipboard.writeText){
+      navigator.clipboard.writeText(text).then(done).catch(() => fallbackCopy(text, done));
+    } else {
+      fallbackCopy(text, done);
+    }
+  }
+
+  // Finds the trailing digit block (length >= FIELD_LEN) right before the last
+  // '<' in a line, and returns its parts. Returns null if no such block exists.
+  function splitFieldFromLine(line){
+    const closeIdx = line.lastIndexOf('<');
+    const endIdx = closeIdx === -1 ? line.length : closeIdx;
+    let digitsStart = endIdx;
+    while(digitsStart > 0 && /[0-9]/.test(line[digitsStart - 1])){
+      digitsStart--;
+    }
+    const digitBlock = line.slice(digitsStart, endIdx);
+    if(digitBlock.length < FIELD_LEN) return null;
+
+    const oldField = digitBlock.slice(digitBlock.length - FIELD_LEN);
+    const head = line.slice(0, digitsStart) + digitBlock.slice(0, digitBlock.length - FIELD_LEN);
+    const tail = line.slice(endIdx);
+    return { head, oldField, tail };
+  }
+
+  // ---------- tabs ----------
+
+  document.querySelectorAll('#main-tabs .tab-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('#main-tabs .tab-btn').forEach(b => b.classList.remove('active'));
+      document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+      btn.classList.add('active');
+      document.getElementById('panel-' + btn.dataset.tab).classList.add('active');
+    });
+  });
+
+  // ---------- KILOMETRAJE (comando único) ----------
+
+  (function initKm(){
+    const GV300_FIXED_SUFFIX = [
+      'AT+GTDAT=gv300w,1,,;STEEPR0151120,,,,,0000$',
+      'AT+GTDAT=gv300w,1,,;STEEPR0152020,,,,,0000$',
+      'AT+GTDAT=gv300w,1,,;STEEPR0153136,,,,,0000$',
+      'AT+GTDAT=gv300w,1,,;STEEPR0154004,,,,,0000$'
+    ];
+
+    const newvalEl = document.getElementById('km-newval');
+    const processBtn = document.getElementById('km-processBtn');
+    const clearBtn = document.getElementById('km-clearBtn');
+    const resultsEl = document.getElementById('km-results');
+    const prefixEl = document.getElementById('km-prefix');
+    const prefixFieldEl = document.getElementById('km-prefix-field');
+    const hintIcanEl = document.getElementById('km-hint-ican');
+    const hintGv300El = document.getElementById('km-hint-gv300');
+    const deviceTabsEl = document.getElementById('km-device-tabs');
+
+    let device = 'ican';
+
+    deviceTabsEl.querySelectorAll('.subtab-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        deviceTabsEl.querySelectorAll('.subtab-btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        device = btn.dataset.device;
+        const isIcan = device === 'ican';
+        prefixFieldEl.style.display = isIcan ? '' : 'none';
+        hintIcanEl.style.display = isIcan ? '' : 'none';
+        hintGv300El.style.display = isIcan ? 'none' : '';
+        renderEmpty();
+      });
+    });
+
+    function renderError(msg){
+      resultsEl.innerHTML = `<div class="result-item error"><div class="error-msg">⚠ ${escapeHtml(msg)}</div></div>`;
+    }
+    function renderEmpty(){
+      resultsEl.innerHTML = '<div class="empty-state">La secuencia de comandos va a aparecer acá.</div>';
+    }
+
+    function renderSequence(allLines, highlightLine, highlightField, newKmDisplay){
+      const fullText = allLines.join('\n');
+      const htmlLines = allLines.map(line => {
+        if(line === highlightLine){
+          const idx = line.indexOf(highlightField);
+          const before = line.slice(0, idx);
+          const after = line.slice(idx + highlightField.length);
+          return `<div class="cmd-line"><span class="cmd-text">${escapeHtml(before)}<span class="highlight">${escapeHtml(highlightField)}</span>${escapeHtml(after)}</span></div>`;
+        }
+        return `<div class="cmd-line unchanged"><span class="cmd-text">${escapeHtml(line)}</span></div>`;
+      }).join('');
+
+      resultsEl.innerHTML = `
+        <div class="result-item">
+          <div class="meta">kilometraje: <span class="km-new">${newKmDisplay}</span></div>
+          ${htmlLines}
+          <div class="copy-all-row">
+            <button class="copy-all-btn" id="km-copyBtn">Copiar secuencia completa</button>
+          </div>
+        </div>
+      `;
+      document.getElementById('km-copyBtn').addEventListener('click', (e) => copyText(fullText, e.currentTarget));
+    }
+
+    function process(){
+      const km = parseDecimal(newvalEl.value);
+      if(km === null){ renderError('Ingresá un kilometraje válido (ej: 464498.5 o 464498,5).'); return; }
+
+      const newField = valueToField(km);
+      if(newField === null){ renderError('El kilometraje ingresado es demasiado grande para codificarlo en 10 dígitos.'); return; }
+
+      const newKmDisplay = km.toLocaleString('es-AR', { minimumFractionDigits: 0, maximumFractionDigits: 3 });
+
+      if(device === 'gv300'){
+        const steepLine = 'AT+GTDAT=gv300w,1,,;STEEP40151' + newField + ',,,,,0000$';
+        const allLines = [steepLine, ...GV300_FIXED_SUFFIX];
+        renderSequence(allLines, steepLine, newField, newKmDisplay);
+      } else {
+        const prefix = prefixEl.value;
+        const steepLine = `>${prefix};STEEP40151${newField}<`;
+        const allLines = [
+          `>${prefix};STCON0120<`,
+          `>${prefix};STCON0131<`,
+          steepLine,
+          `>${prefix};STRSET<`
+        ];
+        renderSequence(allLines, steepLine, newField, newKmDisplay);
+      }
+    }
+
+    processBtn.addEventListener('click', process);
+    clearBtn.addEventListener('click', () => { newvalEl.value = ''; renderEmpty(); });
+    [newvalEl, prefixEl].forEach(el => el.addEventListener('keydown', (e) => { if(e.key === 'Enter'){ e.preventDefault(); process(); } }));
+  })();
+
+  // ---------- HOROMETRO (secuencia de comandos) ----------
+
+  (function initHor(){
+    const newvalEl = document.getElementById('hor-newval');
+    const prefixEl = document.getElementById('hor-prefix');
+    const processBtn = document.getElementById('hor-processBtn');
+    const clearBtn = document.getElementById('hor-clearBtn');
+    const resultsEl = document.getElementById('hor-results');
+
+    function renderError(msg){
+      resultsEl.innerHTML = `<div class="result-item error"><div class="error-msg">⚠ ${escapeHtml(msg)}</div></div>`;
+    }
+    function renderEmpty(){
+      resultsEl.innerHTML = '<div class="empty-state">La secuencia de comandos va a aparecer acá.</div>';
+    }
+
+    function process(){
+      const horas = parseHoras(newvalEl.value);
+      if(horas === null){ renderError('Ingresá un valor de horas válido (ej: 7927 o 7.927).'); return; }
+
+      const segundos = Math.round(horas * 3600);
+      if(String(segundos).length > FIELD_LEN){ renderError('El valor de horas ingresado es demasiado grande para codificarlo en 10 dígitos de segundos.'); return; }
+      const newField = String(segundos).padStart(FIELD_LEN, '0');
+
+      const prefix = prefixEl.value;
+      const steepLine = `>${prefix};STEEP40155${newField}<`;
+      const allLines = [
+        `>${prefix};STCONF141<`,
+        steepLine,
+        `>${prefix};STRSET<`
+      ];
+      const fullText = allLines.join('\n');
+
+      const htmlLines = allLines.map(line => {
+        if(line === steepLine){
+          return `<div class="cmd-line"><span class="cmd-text">${escapeHtml(`>${prefix};STEEP40155`)}<span class="highlight">${escapeHtml(newField)}</span>${escapeHtml('<')}</span></div>`;
+        }
+        return `<div class="cmd-line unchanged"><span class="cmd-text">${escapeHtml(line)}</span></div>`;
+      }).join('');
+
+      const horasDisplay = horas.toLocaleString('es-AR', { maximumFractionDigits: 3 });
+      const segundosDisplay = segundos.toLocaleString('es-AR');
+
+      resultsEl.innerHTML = `
+        <div class="result-item">
+          <div class="meta">horas: <span class="km-new">${horasDisplay} h</span> (${segundosDisplay} s)</div>
+          ${htmlLines}
+          <div class="copy-all-row">
+            <button class="copy-all-btn" id="hor-copyBtn">Copiar secuencia completa</button>
+          </div>
+        </div>
+      `;
+      document.getElementById('hor-copyBtn').addEventListener('click', (e) => copyText(fullText, e.currentTarget));
+    }
+
+    processBtn.addEventListener('click', process);
+    clearBtn.addEventListener('click', () => { newvalEl.value = ''; renderEmpty(); });
+    [newvalEl, prefixEl].forEach(el => el.addEventListener('keydown', (e) => { if(e.key === 'Enter'){ e.preventDefault(); process(); } }));
+  })();
+})();
+</script>
+</body>
+</html>
