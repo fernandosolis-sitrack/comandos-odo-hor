@@ -412,6 +412,38 @@
     }
   }
 
+  // Builds the HTML for a sequence of lines, each with its own "Copiar" button,
+  // optionally highlighting the dynamic field within one of the lines.
+  function buildSequenceHtml(allLines, highlightLine, highlightField){
+    return allLines.map((line, idx) => {
+      let inner;
+      if(line === highlightLine && highlightField){
+        const i = line.indexOf(highlightField);
+        const before = line.slice(0, i);
+        const after = line.slice(i + highlightField.length);
+        inner = `${escapeHtml(before)}<span class="highlight">${escapeHtml(highlightField)}</span>${escapeHtml(after)}`;
+      } else {
+        inner = escapeHtml(line);
+      }
+      const cls = (line === highlightLine) ? 'cmd-line' : 'cmd-line unchanged';
+      return `
+        <div class="${cls}">
+          <span class="cmd-text">${inner}</span>
+          <button class="copy-btn" data-line-idx="${idx}">Copiar</button>
+        </div>`;
+    }).join('');
+  }
+
+  // Wires up the per-line "Copiar" buttons rendered by buildSequenceHtml inside container.
+  function wireLineCopyButtons(container, allLines){
+    container.querySelectorAll('.copy-btn[data-line-idx]').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        const idx = parseInt(btn.dataset.lineIdx, 10);
+        copyText(allLines[idx], e.currentTarget);
+      });
+    });
+  }
+
   // Finds the trailing digit block (length >= FIELD_LEN) right before the last
   // '<' in a line, and returns its parts. Returns null if no such block exists.
   function splitFieldFromLine(line){
@@ -485,15 +517,7 @@
 
     function renderSequence(allLines, highlightLine, highlightField, newKmDisplay){
       const fullText = allLines.join('\n');
-      const htmlLines = allLines.map(line => {
-        if(line === highlightLine){
-          const idx = line.indexOf(highlightField);
-          const before = line.slice(0, idx);
-          const after = line.slice(idx + highlightField.length);
-          return `<div class="cmd-line"><span class="cmd-text">${escapeHtml(before)}<span class="highlight">${escapeHtml(highlightField)}</span>${escapeHtml(after)}</span></div>`;
-        }
-        return `<div class="cmd-line unchanged"><span class="cmd-text">${escapeHtml(line)}</span></div>`;
-      }).join('');
+      const htmlLines = buildSequenceHtml(allLines, highlightLine, highlightField);
 
       resultsEl.innerHTML = `
         <div class="result-item">
@@ -504,6 +528,7 @@
           </div>
         </div>
       `;
+      wireLineCopyButtons(resultsEl, allLines);
       document.getElementById('km-copyBtn').addEventListener('click', (e) => copyText(fullText, e.currentTarget));
     }
 
@@ -570,13 +595,7 @@
         `>${prefix};STRSET<`
       ];
       const fullText = allLines.join('\n');
-
-      const htmlLines = allLines.map(line => {
-        if(line === steepLine){
-          return `<div class="cmd-line"><span class="cmd-text">${escapeHtml(`>${prefix};STEEP40155`)}<span class="highlight">${escapeHtml(newField)}</span>${escapeHtml('<')}</span></div>`;
-        }
-        return `<div class="cmd-line unchanged"><span class="cmd-text">${escapeHtml(line)}</span></div>`;
-      }).join('');
+      const htmlLines = buildSequenceHtml(allLines, steepLine, newField);
 
       const horasDisplay = horas.toLocaleString('es-AR', { maximumFractionDigits: 3 });
       const segundosDisplay = segundos.toLocaleString('es-AR');
@@ -590,6 +609,7 @@
           </div>
         </div>
       `;
+      wireLineCopyButtons(resultsEl, allLines);
       document.getElementById('hor-copyBtn').addEventListener('click', (e) => copyText(fullText, e.currentTarget));
     }
 
