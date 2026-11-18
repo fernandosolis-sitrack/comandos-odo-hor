@@ -290,10 +290,18 @@
     <div class="panel" id="panel-hor">
       <div class="card">
         <div class="field">
+          <label>Tipo de equipo</label>
+          <div class="tabs" id="hor-device-tabs" style="margin-bottom:0;">
+            <button type="button" class="tab-btn subtab-btn active" data-device="lite">iCAN Lite</button>
+            <button type="button" class="tab-btn subtab-btn" data-device="v2">iCAN V2</button>
+          </div>
+        </div>
+
+        <div class="field">
           <label for="hor-prefix">Prefijo</label>
           <select id="hor-prefix">
-            <option value="STMTR0">STMTR0</option>
-            <option value="STMTR1">STMTR1</option>
+            <option value="STMTR0" id="hor-prefix-stmtr0">STMTR0</option>
+            <option value="STMTR1" id="hor-prefix-stmtr1">STMTR1</option>
           </select>
         </div>
         <div class="field">
@@ -306,7 +314,7 @@
           <button class="btn-ghost" id="hor-clearBtn">Limpiar</button>
         </div>
 
-        <div class="hint">
+        <div class="hint" id="hor-hint-lite">
           Conversión: horas × 3.600 = segundos. La secuencia siempre es <code>STCONF141</code> (habilita
           el horómetro virtual), <code>STEEP40155</code> + segundos codificados en 10 dígitos con ceros a
           la izquierda, y <code>STRSET</code> (reinicia la iCAN Lite), con el prefijo
@@ -314,12 +322,18 @@
           Ej: <code>7927</code> h → 28.537.200 s → <code>0028537200</code>.
           El punto se interpreta como separador de miles (no decimal) salvo que uses coma para la parte decimal.
         </div>
+        <div class="hint" id="hor-hint-v2" style="display:none;">
+          Para iCAN V2 la secuencia es <code>STVHOR</code> + segundos codificados en 10 dígitos con ceros
+          a la izquierda, y <code>STRSET</code> (no lleva el <code>STCONF141</code> de habilitación).
+          Ej: <code>123,5</code> h → 444.600 s → <code>0000444600</code>; <code>12703</code> h →
+          45.730.800 s → <code>0045730800</code>.
+        </div>
       </div>
 
       <div class="card">
         <label style="margin-bottom:14px;">Resultado</label>
         <div id="hor-results">
-          <div class="empty-state">La secuencia reemplazada va a aparecer acá.</div>
+          <div class="empty-state">La secuencia de comandos va a aparecer acá.</div>
         </div>
       </div>
     </div>
@@ -571,6 +585,24 @@
     const processBtn = document.getElementById('hor-processBtn');
     const clearBtn = document.getElementById('hor-clearBtn');
     const resultsEl = document.getElementById('hor-results');
+    const hintLiteEl = document.getElementById('hor-hint-lite');
+    const hintV2El = document.getElementById('hor-hint-v2');
+    const deviceTabsEl = document.getElementById('hor-device-tabs');
+
+    let device = 'lite';
+
+    deviceTabsEl.querySelectorAll('.subtab-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        deviceTabsEl.querySelectorAll('.subtab-btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        device = btn.dataset.device;
+        const isLite = device === 'lite';
+        hintLiteEl.style.display = isLite ? '' : 'none';
+        hintV2El.style.display = isLite ? 'none' : '';
+        prefixEl.value = isLite ? 'STMTR0' : 'STMTR1';
+        renderEmpty();
+      });
+    });
 
     function renderError(msg){
       resultsEl.innerHTML = `<div class="result-item error"><div class="error-msg">⚠ ${escapeHtml(msg)}</div></div>`;
@@ -588,12 +620,15 @@
       const newField = String(segundos).padStart(FIELD_LEN, '0');
 
       const prefix = prefixEl.value;
-      const steepLine = `>${prefix};STEEP40155${newField}<`;
-      const allLines = [
-        `>${prefix};STCONF141<`,
-        steepLine,
-        `>${prefix};STRSET<`
-      ];
+      let steepLine, allLines;
+      if(device === 'v2'){
+        steepLine = `>${prefix};STVHOR${newField}<`;
+        allLines = [steepLine, `>${prefix};STRSET<`];
+      } else {
+        steepLine = `>${prefix};STEEP40155${newField}<`;
+        allLines = [`>${prefix};STCONF141<`, steepLine, `>${prefix};STRSET<`];
+      }
+
       const fullText = allLines.join('\n');
       const htmlLines = buildSequenceHtml(allLines, steepLine, newField);
 
